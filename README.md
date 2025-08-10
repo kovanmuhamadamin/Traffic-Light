@@ -1,1 +1,1 @@
-https://kovanmuhmad.github.io/Traffic-Light/
+https://projecttrafic.vercel.app/
