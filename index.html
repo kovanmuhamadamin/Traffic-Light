@@ -1,18 +1,594 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ckb" dir="rtl" class="dark">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Traffic Light</title>
-  <link rel="stylesheet" href="style.css">
-</head>
-<body>
-  <div class="traffic-light">
-    <div class="light red"></div>
-    <div class="light yellow"></div>
-    <div class="light green"></div>
-  </div>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>بژمێری زیرەک | Smart AI Calculator</title>
+    
+    <!-- Google Fonts: Vazirmatn & Noto Sans Arabic for Kurdish Sorani + JetBrains Mono for numbers -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+Arabic:wght@400;600;700&family=Vazirmatn:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
 
-  <script src="script.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Vazirmatn', 'Noto Sans Arabic', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            background: radial-gradient(circle at top right, #1e1b4b, #09090b 65%);
+            color: #f8fafc;
+            font-family: 'Vazirmatn', 'Noto Sans Arabic', sans-serif;
+            min-height: 100vh;
+        }
+        .calc-btn {
+            transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+            user-select: none;
+        }
+        .calc-btn:active {
+            transform: scale(0.94);
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.03);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 999px;
+        }
+    </style>
+</head>
+<body class="antialiased flex flex-col items-center justify-center p-3 sm:p-6">
+
+    <!-- Main Container -->
+    <div class="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
+
+        <!-- ==================== LEFT/RIGHT PANEL: STANDARD & SCIENTIFIC CALCULATOR ==================== -->
+        <div class="lg:col-span-7 bg-zinc-900/80 backdrop-blur-xl border border-white/10 rounded-3xl p-4 sm:p-6 shadow-2xl flex flex-col justify-between">
+            
+            <!-- Header & Mode Switcher -->
+            <div class="flex items-center justify-between gap-2 pb-4 border-b border-white/10">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-600/30">
+                        <i data-lucide="calculator" class="w-5 h-5 text-white"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-base sm:text-lg font-bold text-white">بژمێری زیرەک</h1>
+                        <p class="text-[11px] text-zinc-400">زانستی • ئاسایی • زیرەکی دەستکرد</p>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-1.5 bg-zinc-800/90 p-1 rounded-xl border border-white/5">
+                    <button id="btn-mode-std" onclick="toggleScientific(false)" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 text-white transition">
+                        ئاسایی
+                    </button>
+                    <button id="btn-mode-sci" onclick="toggleScientific(true)" class="px-3 py-1.5 rounded-lg text-xs font-semibold text-zinc-400 hover:text-white transition">
+                        زانستی
+                    </button>
+                </div>
+            </div>
+
+            <!-- Display Screen -->
+            <div class="my-4 bg-zinc-950/90 border border-white/10 rounded-2xl p-4 sm:p-5 flex flex-col justify-end min-h-[130px] relative overflow-hidden" dir="ltr">
+                <div class="flex items-center justify-between text-xs text-zinc-500 mb-2">
+                    <span id="angle-indicator" class="px-2 py-0.5 rounded bg-white/5 font-mono text-[10px]">DEG</span>
+                    <button onclick="copyResult()" title="کۆپیکردنی ئەنجام" class="hover:text-indigo-400 transition flex items-center gap-1 font-sans">
+                        <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                        <span>کۆپی</span>
+                    </button>
+                </div>
+                <!-- Previous Expression -->
+                <div id="expression-display" class="font-mono text-sm sm:text-base text-zinc-400 text-right truncate min-h-[24px]"></div>
+                <!-- Current Number / Result -->
+                <div id="result-display" class="font-mono text-3xl sm:text-5xl font-bold text-white text-right tracking-tight overflow-x-auto whitespace-nowrap mt-1">
+                    0
+                </div>
+            </div>
+
+            <!-- Scientific Buttons Row (Hidden by default) -->
+            <div id="scientific-pad" class="hidden grid-cols-5 gap-2 mb-2.5" dir="ltr">
+                <button onclick="appendFunc('sin(')" class="calc-btn py-2.5 rounded-xl bg-zinc-800/70 hover:bg-zinc-700 text-indigo-300 font-mono text-xs sm:text-sm font-semibold">sin</button>
+                <button onclick="appendFunc('cos(')" class="calc-btn py-2.5 rounded-xl bg-zinc-800/70 hover:bg-zinc-700 text-indigo-300 font-mono text-xs sm:text-sm font-semibold">cos</button>
+                <button onclick="appendFunc('tan(')" class="calc-btn py-2.5 rounded-xl bg-zinc-800/70 hover:bg-zinc-700 text-indigo-300 font-mono text-xs sm:text-sm font-semibold">tan</button>
+                <button onclick="appendFunc('log(')" class="calc-btn py-2.5 rounded-xl bg-zinc-800/70 hover:bg-zinc-700 text-indigo-300 font-mono text-xs sm:text-sm font-semibold">log</button>
+                <button onclick="appendFunc('ln(')" class="calc-btn py-2.5 rounded-xl bg-zinc-800/70 hover:bg-zinc-700 text-indigo-300 font-mono text-xs sm:text-sm font-semibold">ln</button>
+
+                <button onclick="appendFunc('√(')" class="calc-btn py-2.5 rounded-xl bg-zinc-800/70 hover:bg-zinc-700 text-indigo-300 font-mono text-xs sm:text-sm font-semibold">√</button>
+                <button onclick="appendOperator('^')" class="calc-btn py-2.5 rounded-xl bg-zinc-800/70 hover:bg-zinc-700 text-indigo-300 font-mono text-xs sm:text-sm font-semibold">xʸ</button>
+                <button onclick="appendConstant('π')" class="calc-btn py-2.5 rounded-xl bg-zinc-800/70 hover:bg-zinc-700 text-indigo-300 font-mono text-xs sm:text-sm font-semibold">π</button>
+                <button onclick="appendConstant('e')" class="calc-btn py-2.5 rounded-xl bg-zinc-800/70 hover:bg-zinc-700 text-indigo-300 font-mono text-xs sm:text-sm font-semibold">e</button>
+                <button onclick="toggleAngleMode()" id="btn-deg-rad" class="calc-btn py-2.5 rounded-xl bg-indigo-950/80 hover:bg-indigo-900 text-indigo-200 font-mono text-xs font-bold border border-indigo-500/30">DEG/RAD</button>
+            </div>
+
+            <!-- Standard Keypad Grid (LTR order for intuitive calculator layout) -->
+            <div class="grid grid-cols-4 gap-2.5 sm:gap-3" dir="ltr">
+                <!-- Row 1 -->
+                <button onclick="clearAll()" class="calc-btn py-3.5 sm:py-4 rounded-2xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 font-bold text-base sm:text-lg border border-rose-500/20">AC</button>
+                <button onclick="backspace()" class="calc-btn py-3.5 sm:py-4 rounded-2xl bg-zinc-800 hover:bg-zinc-700 text-amber-400 font-bold flex items-center justify-center">
+                    <i data-lucide="delete" class="w-5 h-5"></i>
+                </button>
+                <button onclick="appendOperator('%')" class="calc-btn py-3.5 sm:py-4 rounded-2xl bg-zinc-800 hover:bg-zinc-700 text-indigo-400 font-mono font-bold text-lg">%</button>
+                <button onclick="appendOperator('÷')" class="calc-btn py-3.5 sm:py-4 rounded-2xl bg-indigo-600/25 hover:bg-indigo-600/40 text-indigo-300 font-mono font-bold text-xl border border-indigo-500/25">÷</button>
+
+                <!-- Row 2 -->
+                <button onclick="appendNumber('7')" class="calc-btn py-3.5 sm:py-4 rounded-2xl bg-zinc-800/90 hover:bg-zinc-700 text-white font-mono font-semibold text-xl">7</button>
+                <button onclick="appendNumber('8')" class="calc-btn py-3.5 sm:py-4 rounded-2xl bg-zinc-800/90 hover:bg-zinc-700 text-white font-mono font-semibold text-xl">8</button>
+                <button onclick="appendNumber('9')" class="calc-btn py-3.5 sm:py-4 rounded-2xl bg-zinc-800/90 hover:bg-zinc-700 text-white font-mono font-semibold text-xl">9</button>
+                <button onclick="appendOperator('×')" class="calc-btn py-3.5 sm:py-4 rounded-2xl bg-indigo-600/25 hover:bg-indigo-600/40 text-indigo-300 font-mono font-bold text-xl border border-indigo-500/25">×</button>
+
+                <!-- Row 3 -->
+                <button onclick="appendNumber('4')" class="calc-btn py-3.5 sm:py-4 rounded-2xl bg-zinc-800/90 hover:bg-zinc-700 text-white font-mono font-semibold text-xl">4</button>
+                <button onclick="appendNumber('5')" class="calc-btn py-3.5 sm:py-4 rounded-2xl bg-zinc-800/90 hover:bg-zinc-700 text-white font-mono font-semibold text-xl">5</button>
+                <button onclick="appendNumber('6')" class="calc-btn py-3.5 sm:py-4 rounded-2xl bg-zinc-800/90 hover:bg-zinc-700 text-white font-mono font-semibold text-xl">6</button>
+                <button onclick="appendOperator('-')" class="calc-btn py-3.5 sm:py-4 rounded-2xl bg-indigo-600/25 hover:bg-indigo-600/40 text-indigo-300 font-mono font-bold text-xl border border-indigo-500/25">−</button>
+
+                <!-- Row 4 -->
+                <button onclick="appendNumber('1')" class="calc-btn py-3.5 sm:py-4 rounded-2xl bg-zinc-800/90 hover:bg-zinc-700 text-white font-mono font-semibold text-xl">1</button>
+                <button onclick="appendNumber('2')" class="calc-btn py-3.5 sm:py-4 rounded-2xl bg-zinc-800/90 hover:bg-zinc-700 text-white font-mono font-semibold text-xl">2</button>
+                <button onclick="appendNumber('3')" class="calc-btn py-3.5 sm:py-4 rounded-2xl bg-zinc-800/90 hover:bg-zinc-700 text-white font-mono font-semibold text-xl">3</button>
+                <button onclick="appendOperator('+')" class="calc-btn py-3.5 sm:py-4 rounded-2xl bg-indigo-600/25 hover:bg-indigo-600/40 text-indigo-300 font-mono font-bold text-xl border border-indigo-500/25">+</button>
+
+                <!-- Row 5 -->
+                <button onclick="appendParenthesis()" class="calc-btn py-3.5 sm:py-4 rounded-2xl bg-zinc-800/90 hover:bg-zinc-700 text-zinc-300 font-mono font-semibold text-lg">( )</button>
+                <button onclick="appendNumber('0')" class="calc-btn py-3.5 sm:py-4 rounded-2xl bg-zinc-800/90 hover:bg-zinc-700 text-white font-mono font-semibold text-xl">0</button>
+                <button onclick="appendNumber('.')" class="calc-btn py-3.5 sm:py-4 rounded-2xl bg-zinc-800/90 hover:bg-zinc-700 text-white font-mono font-semibold text-xl">.</button>
+                <button onclick="calculateResult()" class="calc-btn py-3.5 sm:py-4 rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-mono font-bold text-2xl shadow-lg shadow-indigo-600/30">=</button>
+            </div>
+        </div>
+
+        <!-- ==================== AI MATH SOLVER & HISTORY PANEL ==================== -->
+        <div class="lg:col-span-5 bg-zinc-900/80 backdrop-blur-xl border border-white/10 rounded-3xl p-4 sm:p-6 shadow-2xl flex flex-col justify-between space-y-4">
+            
+            <!-- AI Assistant Section -->
+            <div class="space-y-3">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <span class="w-8 h-8 rounded-xl bg-gradient-to-tr from-violet-600 to-fuchsia-600 flex items-center justify-center shadow-md">
+                            <i data-lucide="sparkles" class="w-4 h-4 text-white"></i>
+                        </span>
+                        <div>
+                            <h2 class="text-sm sm:text-base font-bold text-white">یاریدەدەری بیرکاری زیرەک (AI)</h2>
+                            <p class="text-[11px] text-zinc-400">هاوکێشە یان پرسیارەکەت بە کوردی بنووسە</p>
+                        </div>
+                    </div>
+                    <button onclick="explainCurrentCalculation()" title="شیکردنەوەی ئەنجامی ئێستا بە AI" class="px-2.5 py-1.5 rounded-xl bg-violet-600/20 hover:bg-violet-600/35 text-violet-300 text-xs font-bold border border-violet-500/30 flex items-center gap-1 transition">
+                        <i data-lucide="wand-2" class="w-3.5 h-3.5"></i>
+                        <span>شیکردنەوە</span>
+                    </button>
+                </div>
+
+                <!-- AI Input Box -->
+                <div class="relative">
+                    <textarea 
+                        id="ai-prompt-input" 
+                        rows="3" 
+                        placeholder="بۆ نموونە: ئەگەر نرخی کاڵایەک ٧٥,٠٠٠ دینار بێت و داشکاندنی ٢٠٪ی بۆ بکرێت، چەند دەمێنێتەوە؟ یان: 2x + 10 = 34"
+                        class="w-full bg-zinc-950/90 border border-white/10 focus:border-violet-500 rounded-2xl p-3.5 text-xs sm:text-sm text-white placeholder-zinc-500 focus:outline-none resize-none leading-relaxed"
+                    ></textarea>
+                    
+                    <div class="flex items-center justify-between mt-2 gap-2">
+                        <!-- Quick Sample Prompts -->
+                        <div class="flex items-center gap-1.5 overflow-x-auto">
+                            <button onclick="fillSamplePrompt('٣٥٪ی ٢٤٠,٠٠٠ دینار دەکاتە چەند؟')" class="whitespace-nowrap px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-[11px] text-zinc-300 transition">
+                                ڕێژەی سەدی٪
+                            </button>
+                            <button onclick="fillSamplePrompt('هاوکێشەی 3x - 7 = 14 شیکار بکە')" class="whitespace-nowrap px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-[11px] text-zinc-300 transition">
+                                هاوکێشەی x
+                            </button>
+                        </div>
+
+                        <button id="ai-solve-btn" onclick="solveWithAI()" class="px-4 py-2 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-violet-600/25 transition flex-shrink-0">
+                            <i data-lucide="send" class="w-3.5 h-3.5"></i>
+                            <span>شیکارکردن</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- AI Response Output Box -->
+                <div id="ai-response-box" class="bg-zinc-950/70 border border-violet-500/20 rounded-2xl p-3.5 min-h-[125px] max-h-[210px] overflow-y-auto text-xs sm:text-sm text-zinc-200 leading-relaxed">
+                    <div class="flex items-start gap-2.5 text-zinc-400">
+                        <i data-lucide="bot" class="w-5 h-5 text-violet-400 flex-shrink-0 mt-0.5"></i>
+                        <p>سڵاو! من زیرەکی دەستکردی بژمێرەکەتم. هەر پرسیارێکی بیرکاری، گۆڕینی یەکەکان، یان هاوکێشەیەکت هەیە لێرە بینووسە تا هەنگاو بە هەنگاو بۆت شیکار بکەم.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Calculation History Section -->
+            <div class="pt-3 border-t border-white/10 flex-1 flex flex-col min-h-[140px]">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-xs font-bold text-zinc-400 flex items-center gap-1.5">
+                        <i data-lucide="history" class="w-3.5 h-3.5 text-indigo-400"></i>
+                        مێژووی کردارەکان
+                    </span>
+                    <button onclick="clearHistory()" class="text-[11px] text-rose-400 hover:underline">سڕینەوە</button>
+                </div>
+                <div id="history-list" class="flex-1 overflow-y-auto space-y-1.5 max-h-[150px] pr-1">
+                    <p class="text-xs text-zinc-600 text-center py-6">هێشتا هیچ کردارێک تۆمار نەکراوە</p>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-5 right-5 z-50 transform translate-y-20 opacity-0 pointer-events-none transition-all duration-300 bg-zinc-800 border border-white/15 text-white px-4 py-2.5 rounded-xl shadow-2xl text-xs font-semibold flex items-center gap-2">
+        <span class="w-2 h-2 rounded-full bg-indigo-500"></span>
+        <span id="toast-msg">کۆپی کرا</span>
+    </div>
+
+    <script>
+        // ==================== CALCULATOR STATE ====================
+        let currentExpression = '';
+        let lastResult = '0';
+        let isDegree = true;
+        let calcHistory = [];
+
+        const exprDisplay = document.getElementById('expression-display');
+        const resDisplay = document.getElementById('result-display');
+
+        document.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+            setupKeyboardSupport();
+        });
+
+        // Toggle Scientific Keypad
+        function toggleScientific(enable) {
+            const pad = document.getElementById('scientific-pad');
+            const stdBtn = document.getElementById('btn-mode-std');
+            const sciBtn = document.getElementById('btn-mode-sci');
+
+            if (enable) {
+                pad.classList.remove('hidden');
+                pad.classList.add('grid');
+                sciBtn.classList.add('bg-indigo-600', 'text-white');
+                sciBtn.classList.remove('text-zinc-400');
+                stdBtn.classList.remove('bg-indigo-600', 'text-white');
+                stdBtn.classList.add('text-zinc-400');
+            } else {
+                pad.classList.add('hidden');
+                pad.classList.remove('grid');
+                stdBtn.classList.add('bg-indigo-600', 'text-white');
+                stdBtn.classList.remove('text-zinc-400');
+                sciBtn.classList.remove('bg-indigo-600', 'text-white');
+                sciBtn.classList.add('text-zinc-400');
+            }
+        }
+
+        function toggleAngleMode() {
+            isDegree = !isDegree;
+            document.getElementById('angle-indicator').textContent = isDegree ? 'DEG' : 'RAD';
+            showToast(isDegree ? 'دۆخی گۆشە: پلە (DEG)' : 'دۆخی گۆشە: ڕادیان (RAD)');
+        }
+
+        function updateDisplay() {
+            exprDisplay.textContent = currentExpression;
+            resDisplay.textContent = currentExpression === '' ? lastResult : currentExpression;
+        }
+
+        function appendNumber(num) {
+            if (num === '.') {
+                const parts = currentExpression.split(/[\+\-\×\÷\^\(\)]/);
+                const lastPart = parts[parts.length - 1];
+                if (lastPart.includes('.')) return;
+                if (lastPart === '') currentExpression += '0';
+            }
+            currentExpression += num;
+            updateDisplay();
+        }
+
+        function appendOperator(op) {
+            if (currentExpression === '' && lastResult !== '0' && lastResult !== 'هەڵە') {
+                currentExpression = lastResult;
+            }
+            if (currentExpression === '') return;
+            const lastChar = currentExpression.slice(-1);
+            if (['+', '-', '×', '÷', '^', '%'].includes(lastChar)) {
+                currentExpression = currentExpression.slice(0, -1) + op;
+            } else {
+                currentExpression += op;
+            }
+            updateDisplay();
+        }
+
+        function appendFunc(fn) {
+            currentExpression += fn;
+            updateDisplay();
+        }
+
+        function appendConstant(c) {
+            currentExpression += c;
+            updateDisplay();
+        }
+
+        function appendParenthesis() {
+            const openCount = (currentExpression.match(/\(/g) || []).length;
+            const closeCount = (currentExpression.match(/\)/g) || []).length;
+            const lastChar = currentExpression.slice(-1);
+            if (openCount > closeCount && /[0-9\)πe]/.test(lastChar)) {
+                currentExpression += ')';
+            } else {
+                currentExpression += '(';
+            }
+            updateDisplay();
+        }
+
+        function clearAll() {
+            currentExpression = '';
+            lastResult = '0';
+            exprDisplay.textContent = '';
+            resDisplay.textContent = '0';
+        }
+
+        function backspace() {
+            if (currentExpression.length > 0) {
+                currentExpression = currentExpression.slice(0, -1);
+                updateDisplay();
+            }
+        }
+
+        // Safe Mathematical Expression Evaluator
+        function evaluateMathString(rawExpr) {
+            let expr = rawExpr
+                .replace(/×/g, '*')
+                .replace(/÷/g, '/')
+                .replace(/−/g, '-')
+                .replace(/\^/g, '**')
+                .replace(/π/g, `(${Math.PI})`)
+                .replace(/\be\b/g, `(${Math.E})`)
+                .replace(/(\d+(?:\.\d+)?)%/g, '($1/100)');
+
+            // Auto-close unclosed parentheses
+            const openP = (expr.match(/\(/g) || []).length;
+            const closeP = (expr.match(/\)/g) || []).length;
+            if (openP > closeP) {
+                expr += ')'.repeat(openP - closeP);
+            }
+
+            // Custom math functions supporting DEG/RAD
+            const toRad = (val) => isDegree ? (val * Math.PI) / 180 : val;
+            const sin = (x) => Math.sin(toRad(x));
+            const cos = (x) => Math.cos(toRad(x));
+            const tan = (x) => Math.tan(toRad(x));
+            const sqrt = (x) => Math.sqrt(x);
+            const log = (x) => Math.log10(x);
+            const ln = (x) => Math.log(x);
+
+            expr = expr.replace(/√\(/g, 'sqrt(');
+
+            const evaluator = new Function('sin', 'cos', 'tan', 'sqrt', 'log', 'ln', `return (${expr});`);
+            const val = evaluator(sin, cos, tan, sqrt, log, ln);
+
+            if (!isFinite(val) || isNaN(val)) throw new Error('Invalid');
+            return Number(val.toPrecision(12)).toString();
+        }
+
+        function calculateResult() {
+            if (!currentExpression) return;
+            try {
+                const evaluated = evaluateMathString(currentExpression);
+                addToHistory(currentExpression, evaluated);
+                exprDisplay.textContent = currentExpression + ' =';
+                resDisplay.textContent = evaluated;
+                lastResult = evaluated;
+                currentExpression = '';
+            } catch (err) {
+                resDisplay.textContent = 'هەڵە';
+                lastResult = '0';
+                currentExpression = '';
+            }
+        }
+
+        // History Management
+        function addToHistory(expr, res) {
+            calcHistory.unshift({ expr, res });
+            if (calcHistory.length > 20) calcHistory.pop();
+            renderHistory();
+        }
+
+        function renderHistory() {
+            const list = document.getElementById('history-list');
+            if (calcHistory.length === 0) {
+                list.innerHTML = `<p class="text-xs text-zinc-600 text-center py-6">هێشتا هیچ کردارێک تۆمار نەکراوە</p>`;
+                return;
+            }
+            list.innerHTML = calcHistory.map(item => `
+                <div onclick="useHistoryItem('${item.res}')" class="flex items-center justify-between p-2.5 rounded-xl bg-zinc-950/60 hover:bg-white/5 border border-white/5 cursor-pointer transition" dir="ltr">
+                    <span class="font-mono text-xs text-zinc-400 truncate max-w-[60%]">${item.expr}</span>
+                    <span class="font-mono text-sm font-bold text-indigo-400">= ${item.res}</span>
+                </div>
+            `).join('');
+        }
+
+        function useHistoryItem(val) {
+            currentExpression += val;
+            updateDisplay();
+        }
+
+        function clearHistory() {
+            calcHistory = [];
+            renderHistory();
+        }
+
+        // Keyboard Support
+        function setupKeyboardSupport() {
+            document.addEventListener('keydown', (e) => {
+                if (document.activeElement.id === 'ai-prompt-input') {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        solveWithAI();
+                    }
+                    return;
+                }
+                if (/[0-9\.]/.test(e.key)) appendNumber(e.key);
+                else if (e.key === '+') appendOperator('+');
+                else if (e.key === '-') appendOperator('-');
+                else if (e.key === '*') appendOperator('×');
+                else if (e.key === '/') { e.preventDefault(); appendOperator('÷'); }
+                else if (e.key === '%') appendOperator('%');
+                else if (e.key === '^') appendOperator('^');
+                else if (e.key === '(' || e.key === ')') appendParenthesis();
+                else if (e.key === 'Enter' || e.key === '=') { e.preventDefault(); calculateResult(); }
+                else if (e.key === 'Backspace') backspace();
+                else if (e.key === 'Escape') clearAll();
+            });
+        }
+
+        function copyResult() {
+            const textToCopy = resDisplay.textContent.trim();
+            const temp = document.createElement('input');
+            temp.value = textToCopy;
+            document.body.appendChild(temp);
+            temp.select();
+            document.execCommand('copy');
+            document.body.removeChild(temp);
+            showToast(`ئەنجام (${textToCopy}) کۆپی کرا`);
+        }
+
+        // ==================== GEMINI AI MATH ASSISTANT ====================
+        function fillSamplePrompt(text) {
+            document.getElementById('ai-prompt-input').value = text;
+        }
+
+        function explainCurrentCalculation() {
+            const expr = exprDisplay.textContent.replace('=', '').trim();
+            const res = resDisplay.textContent.trim();
+            if (!expr && res === '0') {
+                showToast('سەرەتا کردارێکی بیرکاری ئەنجام بدە');
+                return;
+            }
+            const prompt = expr
+                ? `ئەم کردارە بیرکارییەم بە کوردی سۆرانی بۆ ڕوون بکەرەوە کە چۆن ئەنجامەکەی دەرچووە: ${expr} = ${res}`
+                : `ئەم ژمارەیە (${res}) شیکار بکە و تایبەتمەندییە بیرکارییەکانی بە کورتی بە کوردی باس بکە.`;
+            document.getElementById('ai-prompt-input').value = prompt;
+            solveWithAI();
+        }
+
+        async function callGeminiWithRetry(payload, maxRetries = 4) {
+            const apiKey = "";
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+
+            for (let attempt = 0; attempt <= maxRetries; attempt++) {
+                try {
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+                    return await response.json();
+                } catch (error) {
+                    if (attempt === maxRetries) throw error;
+                    const delay = Math.pow(2, attempt) * 1000;
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                }
+            }
+        }
+
+        async function solveWithAI() {
+            const inputEl = document.getElementById('ai-prompt-input');
+            const responseBox = document.getElementById('ai-response-box');
+            const solveBtn = document.getElementById('ai-solve-btn');
+            const query = inputEl.value.trim();
+
+            if (!query) {
+                showToast('تکایە پرسیارەکەت بنووسە');
+                return;
+            }
+
+            // Loading UI
+            solveBtn.disabled = true;
+            solveBtn.classList.add('opacity-60');
+            responseBox.innerHTML = `
+                <div class="flex items-center gap-2.5 text-violet-300 py-4">
+                    <div class="w-4 h-4 border-2 border-violet-400 border-t-transparent rounded-full animate-spin"></div>
+                    <span>زیرەکی دەستکرد خەریکی شیکارکردنە...</span>
+                </div>
+            `;
+
+            const systemPrompt = `تۆ یاریدەدەرێکی پسپۆڕی بیرکاریت لەناو بژمێرێکی زیرەکدا. 
+            بە زمانی کوردی سۆرانییەکی پاراو، سادە و ڕوون وەڵام بدەرەوە.
+            وەڵامەکەت بەم شێوەیە ڕێکبخە:
+            ١. سەرەتا ئەنجامی کۆتایی بە ڕوونی بنووسە.
+            ٢. پاشان هەنگاوەکانی شیکارکردن بە خاڵبەندی و بە کورتی ڕوون بکەرەوە.
+            ژمارە و هێما بیرکارییەکان بە ڕێکوپێکی بنووسە.`;
+
+            const payload = {
+                contents: [{ parts: [{ text: query }] }],
+                systemInstruction: { parts: [{ text: systemPrompt }] }
+            };
+
+            try {
+                const result = await callGeminiWithRetry(payload);
+                const aiText = result?.candidates?.[0]?.content?.parts?.[0]?.text;
+
+                if (aiText) {
+                    // Format markdown bold & line breaks cleanly
+                    const formatted = aiText
+                        .replace(/\*\*(.*?)\*\*/g, '<strong class="text-violet-300 font-bold">$1</strong>')
+                        .replace(/\n/g, '<br>');
+
+                    responseBox.innerHTML = `
+                        <div class="space-y-2">
+                            <div class="flex items-center justify-between border-b border-white/10 pb-1.5">
+                                <span class="text-[11px] font-bold text-violet-400 flex items-center gap-1">
+                                    <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+                                    وەڵامی زیرەکی دەستکرد
+                                </span>
+                            </div>
+                            <div class="text-zinc-100 leading-relaxed">${formatted}</div>
+                        </div>
+                    `;
+                    lucide.createIcons();
+                } else {
+                    throw new Error('Empty response');
+                }
+            } catch (err) {
+                responseBox.innerHTML = `
+                    <div class="text-rose-400 flex items-center gap-2 py-2">
+                        <i data-lucide="alert-circle" class="w-4 h-4 flex-shrink-0"></i>
+                        <span>ببورە، کێشەیەک لە پەیوەندیکردن بە زیرەکی دەستکرد ڕوویدا. تکایە دووبارە هەوڵبدەرەوە.</span>
+                    </div>
+                `;
+                lucide.createIcons();
+            } finally {
+                solveBtn.disabled = false;
+                solveBtn.classList.remove('opacity-60');
+            }
+        }
+
+        // Non-intrusive Toast Helper
+        let toastTimer;
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-msg').textContent = msg;
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 2500);
+        }
+    </script>
 </body>
 </html>
